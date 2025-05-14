@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Embeddings Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #333;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.8em;
+            font-weight: 500;
+        }
+        h2 {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-top: 0;
+        }
+        .description {
+            color: #666;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        .flex-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 768px) {
+            .flex-row {
+                flex-direction: column;
+            }
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header-right {
+                margin-top: 10px;
+            }
+        }
+        .model-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .model-button {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .model-button:hover {
+            border-color: #aaa;
+        }
+        .model-button.active {
+            background-color: #f0f0f0;
+            border-color: #999;
+            font-weight: 500;
+        }
+        .search-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        input, select {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 14px;
+            flex: 1;
+        }
+        input:focus, select:focus {
+            border-color: #999;
+            outline: none;
+        }
+        button {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #e6e6e6;
+            border-color: #999;
+        }
+        .plot {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .side-panel {
+            flex: 0 0 300px;
+        }
+        .main-panel {
+            flex: 1;
+        }
+        .word-info {
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        #selected-word {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .similar-word {
+            display: inline-block;
+            margin: 0 5px 5px 0;
+            padding: 6px 10px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        .similar-word:hover {
+            background-color: #e6e6e6;
+        }
+        .word-text {
+            font-weight: 500;
+        }
+        .sim-score {
+            color: #666;
+            font-size: 0.85em;
+            margin-left: 3px;
+        }
+        .not-found {
+            color: #e74c3c;
+            display: none;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px 0;
+            color: #999;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .model-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .github-link {
+            display: inline-flex;
+            align-items: center;
+            color: #333;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .github-link svg {
+            margin-right: 5px;
+        }
+        .github-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <h1>Word Embeddings Explorer</h1>
+            <div class="header-right">
+                <a href="https://github.com/yourusername/word-embeddings-explorer" class="github-link" target="_blank">
+                    <svg height="24" width="24" viewBox="0 0 16 16" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="description">
+            Explore word embeddings from different models. View the spatial relationships between words and discover semantic similarities.
+        </div>
+
+        <div class="model-list" id="model-list">
+            <div class="loading">Loading models...</div>
+        </div>
+
+        <div id="model-description" class="model-info">
+            Select a model to see its description
+        </div>
+
+        <div class="flex-row">
+            <div class="main-panel">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search for a word..." autofocus>
+                    <button id="search-button">Find</button>
+                    <select id="num-words">
+                        <option value="30">30 words</option>
+                        <option value="50" selected>50 words</option>
+                        <option value="100">100 words</option>
+                        <option value="200">200 words</option>
+                        <option value="500">500 words</option>
+                        <option value="1000">1000 words</option>
+                    </select>
+                </div>
+                <div class="not-found" id="not-found">Word not found in this model</div>
+                
+                <div class="plot" id="plot">
+                    <div class="loading">Please select a model to load visualization</div>
+                </div>
+            </div>
+            
+            <div class="side-panel">
+                <div class="word-info">
+                    <div id="selected-word">No word selected</div>
+                    <h2>Similar words</h2>
+                    <div id="similar-words">Click on a word in the visualization</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>This is a static Word Embeddings Explorer for visualizing word relationships in different language models. 
+               The visualizations use PCA to reduce high-dimensional embeddings to 2D space.</p>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let embeddingData = null;
+        let currentModelFile = null;
+        let currentModelName = null;
+        let currentModelDesc = null;
+
+        // Load configuration from config.yaml
+        async function loadConfig() {
+            try {
+                const response = await fetch('config.yaml');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const yamlText = await response.text();
+                const config = jsyaml.load(yamlText);
+                return config;
+            } catch (error) {
+                console.error("Error loading config:", error);
+                return { models: [
+                    { name: "Default Model", file: "models/glove-twitter-25.json", description: "Default model" }
+                ]};
+            }
+        }
+
+        // Load embedding data from JSON file
+        async function loadEmbeddingData(filename, modelName, modelDesc) {
+            try {
+                document.getElementById('plot').innerHTML = '<div class="loading">Loading visualization...</div>';
+                
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                embeddingData = await response.json();
+                currentModelFile = filename;
+                currentModelName = modelName;
+                currentModelDesc = modelDesc;
+                
+                // Update model description
+                document.getElementById('model-description').textContent = 
+                    modelDesc || `${modelName} - No description available`;
+                
+                // Update the visualization
+                updateVisualization();
+                
+                // Reset word info
+                document.getElementById('selected-word').textContent = 'No word selected';
+                document.getElementById('similar-words').innerHTML = 'Click on a word in the visualization';
+                document.getElementById('not-found').style.display = 'none';
+                
+                console.log(`Loaded embedding data from ${filename} with ${embeddingData.words.length} words`);
+            } catch (error) {
+                console.error(`Error loading data from ${filename}:`, error);
+                document.getElementById('plot').innerHTML = `
+                    <div style="padding: 20px; color: #e74c3c;">
+                        Error loading embedding data: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Create model selection buttons
+        function createModelButtons(models) {
+            const container = document.getElementById('model-list');
+            container.innerHTML = '';
+            
+            if (!models || models.length === 0) {
+                container.innerHTML = 'No models found in configuration.';
+                return;
+            }
+            
+            models.forEach((model, index) => {
+                const button = document.createElement('button');
+                button.className = 'model-button';
+                button.textContent = model.name;
+                button.title = model.description || '';
+                button.dataset.file = model.file;
+                button.dataset.description = model.description || '';
+                
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    document.querySelectorAll('.model-button').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked button
+                    button.classList.add('active');
+                    
+                    // Load the model
+                    loadEmbeddingData(model.file, model.name, model.description);
+                });
+                
+                container.appendChild(button);
+                
+                // Select first model by default
+                if (index === 0) {
+                    button.classList.add('active');
+                    currentModelFile = model.file;
+                    currentModelName = model.name;
+                    currentModelDesc = model.description;
+                    loadEmbeddingData(model.file, model.name, model.description);
+                }
+            });
+        }
+
+        // Update visualization
+        function updateVisualization() {
+            if (!embeddingData) return;
+            
+            // Get number of words to display
+            const numWords = parseInt(document.getElementById('num-words').value);
+            
+            // Limit to the requested number of words
+            const words = embeddingData.words.slice(0, Math.min(numWords, embeddingData.words.length));
+            const coordinates = embeddingData.coordinates.slice(0, Math.min(numWords, embeddingData.coordinates.length));
+            
+            // Extract X and Y coordinates
+            const x = coordinates.map(coord => coord[0]);
+            const y = coordinates.map(coord => coord[1]);
+            
+            // Create trace for Plotly
+            const trace = {
+                x: x,
+                y: y,
+                mode: 'markers+text',
+                type: 'scatter',
+                text: words,
+                textposition: 'top center',
+                textfont: {
+                    family: 'Arial, sans-serif',
+                    size: 11,
+                    color: '#333'
+                },
+                marker: {
+                    size: 8,
+                    opacity: 0.7,
+                    color: '#555',
+                },
+                hoverinfo: 'text',
+                hovertext: words
+            };
+            
+            // Define layout
+            const layout = {
+                margin: { l: 30, r: 30, t: 30, b: 30, pad: 0 },
+                hovermode: 'closest',
+                xaxis: {
+                    showgrid: true,
+                    zeroline: false,
+                    showticklabels: false,
+                    gridcolor: '#f0f0f0'
+                },
+                yaxis: {
+                    showgrid: true,
+                    zeroline: false,
+                    showticklabels: false,
+                    gridcolor: '#f0f0f0'
+                },
+                plot_bgcolor: '#ffffff',
+                paper_bgcolor: '#ffffff',
+                title: {
+                    text: `${currentModelName} - ${words.length} words`,
+                    font: {
+                        size: 14
+                    }
+                }
+            };
+            
+            // Create plot
+            Plotly.newPlot('plot', [trace], layout, {
+                displayModeBar: true,
+                responsive: true,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+            });
+            
+            // Add click event for word selection
+            document.getElementById('plot').on('plotly_click', function(data) {
+                const pointIndex = data.points[0].pointIndex;
+                const selectedWord = words[pointIndex];
+                displayWordInfo(selectedWord);
+            });
+        }
+
+        // Display information about selected word
+        function displayWordInfo(word) {
+            if (!embeddingData || !embeddingData.words.includes(word)) {
+                document.getElementById('selected-word').textContent = 'Word not found';
+                document.getElementById('similar-words').innerHTML = '';
+                return;
+            }
+            
+            // Display the selected word
+            document.getElementById('selected-word').textContent = word;
+            
+            // Display similar words if available
+            const similarWordsContainer = document.getElementById('similar-words');
+            similarWordsContainer.innerHTML = '';
+            
+            if (embeddingData.similarWords && embeddingData.similarWords[word]) {
+                const similarList = embeddingData.similarWords[word];
+                
+                if (similarList.length === 0) {
+                    similarWordsContainer.textContent = 'No similar words found';
+                } else {
+                    similarList.forEach(similar => {
+                        const similarWordElem = document.createElement('div');
+                        similarWordElem.className = 'similar-word';
+                        similarWordElem.innerHTML = `
+                            <span class="word-text">${similar.word}</span>
+                            <span class="sim-score">${similar.similarity.toFixed(2)}</span>
+                        `;
+                        similarWordElem.addEventListener('click', () => {
+                            findWord(similar.word);
+                        });
+                        similarWordsContainer.appendChild(similarWordElem);
+                    });
+                }
+            } else {
+                similarWordsContainer.textContent = 'No similar words data available';
+            }
+        }
+
+        // Find and highlight a word
+        function findWord(word) {
+            if (!embeddingData) return false;
+            
+            // Hide any previous "not found" message
+            document.getElementById('not-found').style.display = 'none';
+            
+            const wordIndex = embeddingData.words.findIndex(w => 
+                w.toLowerCase() === word.toLowerCase()
+            );
+            
+            if (wordIndex !== -1) {
+                const numWords = parseInt(document.getElementById('num-words').value);
+                
+                // Check if the word is within the current display limit
+                if (wordIndex >= numWords) {
+                    // Word exists but not displayed - increase the limit
+                    document.getElementById('num-words').value = 
+                        Math.min(1000, Math.max(numWords, Math.ceil(wordIndex * 1.2)));
+                    updateVisualization();
+                }
+                
+                // Get coordinates for the word
+                const coords = embeddingData.coordinates[wordIndex];
+                
+                // Display word information
+                displayWordInfo(embeddingData.words[wordIndex]);
+                
+                // Update layout to focus on the word
+                Plotly.relayout('plot', {
+                    'xaxis.range': [coords[0] - 12, coords[0] + 12],
+                    'yaxis.range': [coords[1] - 12, coords[1] + 12]
+                });
+                
+                // Get all traces
+                const plotData = document.getElementById('plot').data;
+                
+                // If there's a highlight trace, remove it
+                if (plotData.length > 1) {
+                    Plotly.deleteTraces('plot', 1);
+                }
+                
+                // Highlight the word in the plot
+                const highlightTrace = {
+                    x: [coords[0]],
+                    y: [coords[1]],
+                    mode: 'markers+text',
+                    type: 'scatter',
+                    text: [embeddingData.words[wordIndex]],
+                    textposition: 'top center',
+                    textfont: {
+                        family: 'Arial, sans-serif',
+                        size: 12,
+                        color: '#e74c3c',
+                        weight: 'bold'
+                    },
+                    marker: {
+                        size: 12,
+                        color: '#e74c3c',
+                        opacity: 1,
+                        line: { width: 1, color: '#fff' }
+                    },
+                    hoverinfo: 'text',
+                    hovertext: [embeddingData.words[wordIndex]],
+                    showlegend: false
+                };
+                
+                // Add highlight trace
+                Plotly.addTraces('plot', highlightTrace);
+                
+                return true;
+            } else {
+                // Word not found
+                document.getElementById('not-found').style.display = 'block';
+                document.getElementById('selected-word').textContent = `"${word}" not found`;
+                document.getElementById('similar-words').innerHTML = 'Word not available in this model';
+                return false;
+            }
+        }
+
+        // Reset zoom to show all words
+        function resetZoom() {
+            if (!embeddingData) return;
+            
+            Plotly.relayout('plot', {
+                'xaxis.autorange': true,
+                'yaxis.autorange': true
+            });
+        }
+
+        // Initialize application
+        async function initializeApp() {
+            try {
+                // Load config
+                const config = await loadConfig();
+                
+                // Create model buttons
+                createModelButtons(config.models);
+            } catch (error) {
+                console.error("Error initializing app:", error);
+                document.getElementById('plot').innerHTML = 
+                    `<div style="padding: 20px; color: #e74c3c;">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize app
+            initializeApp();
+            
+            // Search button click
+            document.getElementById('search-button').addEventListener('click', function() {
+                const searchTerm = document.getElementById('search-input').value.trim();
+                if (searchTerm) findWord(searchTerm);
+            });
+            
+            // Search on Enter key
+            document.getElementById('search-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('search-button').click();
+                }
+            });
+            
+            // Update view when changing number of words
+            document.getElementById('num-words').addEventListener('change', function() {
+                updateVisualization();
+            });
+        });
+    </script>
+</body>
+</html>

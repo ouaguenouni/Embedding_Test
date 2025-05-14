@@ -1,0 +1,4 @@
+models:
+- description: Word embeddings from glove-twitter-25 model
+  file: glove-twitter-25.json
+  name: glove-twitter-25
