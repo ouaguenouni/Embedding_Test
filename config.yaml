@@ -8,3 +8,6 @@ models:
 - description: Word embeddings from word2vec-google-news-300 model
   file: word2vec-google-news-300.json
   name: word2vec-google-news-300
+- description: Custom web embedding.
+  file: p2v.json
+  name: p2v
